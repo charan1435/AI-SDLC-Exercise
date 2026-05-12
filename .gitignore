@@ -64,3 +64,22 @@ Thumbs.db
 
 # Hook-owned bookkeeping files (transient, never tracked)
 .claude/.pending-*
+
+# Next.js build output (auto-generated, never commit)
+.next/
+
+# Next.js TypeScript auto-generated reference file (regenerated on every build)
+next-env.d.ts
+
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Test coverage reports (rebuilt on every test run)
+coverage/
+
+# Build-pipeline screenshot artifacts (visual feedback PNGs from npm run dev)
+.claude/screenshots/feedback/
+
+# Claude Code per-user local settings (not project-level)
+.claude/settings.local.json
