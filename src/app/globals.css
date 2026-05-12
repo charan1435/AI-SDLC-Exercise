@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design tokens as CSS custom properties ───────────────────────────── */
+:root {
+  --bg: #f4f4f4;
+  --bg-alt: #f4f4f5;
+  --surface: #ffffff;
+  --ink: #0a0a0a;
+  --ink-muted: #52525b;
+  --ink-subtle: #a1a1aa;
+  --accent: #a3e635;
+  --accent-hover: #84cc16;
+  --accent-ink: #1a2e05;
+  --border: #e4e4e7;
+  --success: #65a30d;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-hero: 0 4px 24px rgba(0, 0, 0, 0.06);
+
+  --radius-card: 2.5rem;
+  --radius-pill: 2rem;
+  --radius-input: 1rem;
+}
+
+/* ─── Base body ────────────────────────────────────────────────────────── */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-poppins), 'Poppins', system-ui, sans-serif;
+}
+
+/* ─── Stagger animation utility ────────────────────────────────────────── */
+@layer utilities {
+  .rounded-card {
+    border-radius: var(--radius-card);
+  }
+  .rounded-pill {
+    border-radius: var(--radius-pill);
+  }
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  .shadow-hero {
+    box-shadow: var(--shadow-hero);
+  }
+
+  /* Stagger delay helpers for page-entry animation */
+  .stagger-1 { animation-delay: 0ms; }
+  .stagger-2 { animation-delay: 60ms; }
+  .stagger-3 { animation-delay: 120ms; }
+  .stagger-4 { animation-delay: 180ms; }
+  .stagger-5 { animation-delay: 240ms; }
+  .stagger-6 { animation-delay: 300ms; }
+}
+
+/* ─── Focus ring ────────────────────────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
