@@ -45,15 +45,20 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  _vote_count integer;
+  _vote_count integer := 0;
+  _vote_row public.votes%rowtype;
 BEGIN
   -- Lock all existing votes for this (round, voter) to serialise concurrent inserts.
-  SELECT COUNT(*)
-  INTO _vote_count
-  FROM public.votes
-  WHERE round_id = NEW.round_id
-    AND voter_id = NEW.voter_id
-  FOR UPDATE;
+  -- Use a loop to count rows while holding locks.
+  FOR _vote_row IN 
+    SELECT *
+    FROM public.votes
+    WHERE round_id = NEW.round_id
+      AND voter_id = NEW.voter_id
+    FOR UPDATE
+  LOOP
+    _vote_count := _vote_count + 1;
+  END LOOP;
 
   IF _vote_count >= 3 THEN
     RAISE EXCEPTION 'You have used all 3 votes — withdraw one to vote again.'
@@ -70,6 +75,11 @@ CREATE TRIGGER votes_before_insert_ceiling
 
 -- ─── Row-Level Security ───────────────────────────────────────────────────
 ALTER TABLE public.votes ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist (for idempotent re-runs)
+DROP POLICY IF EXISTS "votes_select_authenticated" ON public.votes;
+DROP POLICY IF EXISTS "votes_insert_open_round_own" ON public.votes;
+DROP POLICY IF EXISTS "votes_delete_open_round_own" ON public.votes;
 
 -- All authenticated users can read votes (for tally display).
 CREATE POLICY "votes_select_authenticated"
