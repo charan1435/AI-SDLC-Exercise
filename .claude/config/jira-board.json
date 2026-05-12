@@ -12,20 +12,22 @@
   },
 
   "fields": {
-    "epic_link":           "customfield_10014",
-    "acceptance_criteria": "customfield_10015"
+    "$comment":            "Team-managed (simplified) Jira project. Epic-link uses the top-level `parent` field on createJiraIssue, NOT a customfield. Acceptance Criteria is embedded in description body — no separate AC custom field exposed on the create screen.",
+    "epic_link":           "parent",
+    "acceptance_criteria": null
   },
 
   "assignee": {
-    "email":      "SaicharanG@embla.asia",
-    "account_id": null
+    "email":       "SaicharanG@embla.asia",
+    "account_id":  "712020:fae1d817-7deb-41a9-8904-3132ae879c24",
+    "display_name": "Saicharan Gnanapiragasam"
   },
 
   "transitions": {
-    "$comment": "Resolved at first phase-run via getTransitionsForJiraIssue and cached here. Names mirror .claude/config/orchestrator.json#jira.status_transitions.",
-    "To Do":       null,
-    "In Progress": null,
+    "$comment":   "Resolved against AIEX-797 on first /jira run. AIEX is a 3-column workflow (To Do → In Progress → Done) with no `In Review` column — /review must map review-pass directly to Done and review-fail to In Progress.",
+    "To Do":       "11",
+    "In Progress": "21",
     "In Review":   null,
-    "Done":        null
+    "Done":        "31"
   }
 }
