@@ -61,3 +61,6 @@ Thumbs.db
 # Raw spec / design artifacts (do not commit)
 .claude/context/*.docx
 .claude/context/*.pdf
+
+# Hook-owned bookkeeping files (transient, never tracked)
+.claude/.pending-*
