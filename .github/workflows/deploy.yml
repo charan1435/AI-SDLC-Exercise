@@ -1,0 +1,40 @@
+name: Production Deploy
+
+# Adjusted from the /cicd template: our default branch is `master`, not `main`.
+# Requires `supabase link --project-ref <ref>` to have been run once locally
+# (or set the project ref via env) so the `supabase db push` step targets the
+# correct project. The SUPABASE_ACCESS_TOKEN secret authenticates the CLI.
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run database migrations
+        # Requires the project to be linked. If first run, set
+        # SUPABASE_PROJECT_REF and add `supabase link` before `db push`.
+        run: npx supabase db push
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      - name: Deploy to Vercel (Production)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: --prod
