@@ -1,0 +1,18 @@
+{
+  "cloud_id":  "fb779f96-2443-4319-b441-63d66a63bbaf",
+  "site_url":  "https://emblaftdev.atlassian.net",
+  "project_key": "AIEX",
+
+  "issue_types": {
+    "epic":    "Epic",
+    "story":   "Story",
+    "task":    "Task",
+    "bug":     "Bug",
+    "subtask": "Subtask"
+  },
+
+  "fields": {
+    "epic_link":           "customfield_10014",
+    "acceptance_criteria": "customfield_10015"
+  }
+}

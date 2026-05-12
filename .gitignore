@@ -1,0 +1,23 @@
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+.env.development
+.env.test
+*.env
+
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+
+# Build output
+.next/
+dist/
+build/
+out/
+
+# OS
+.DS_Store
+Thumbs.db
