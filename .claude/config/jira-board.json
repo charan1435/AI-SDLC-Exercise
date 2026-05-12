@@ -14,5 +14,18 @@
   "fields": {
     "epic_link":           "customfield_10014",
     "acceptance_criteria": "customfield_10015"
+  },
+
+  "assignee": {
+    "email":      "SaicharanG@embla.asia",
+    "account_id": null
+  },
+
+  "transitions": {
+    "$comment": "Resolved at first phase-run via getTransitionsForJiraIssue and cached here. Names mirror .claude/config/orchestrator.json#jira.status_transitions.",
+    "To Do":       null,
+    "In Progress": null,
+    "In Review":   null,
+    "Done":        null
   }
 }

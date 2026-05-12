@@ -46,6 +46,45 @@ read them itself.
 
 ---
 
+## Step 2.5 — Jira: transition your tickets to "In Progress"
+
+Before any subagent runs, advance the user's Jira tickets so the
+board reflects active work. This is governed by
+`.claude/lib/core/jira-policy.md` (read it once if you have not in
+this session) and `orchestrator.json#jira.status_transitions`.
+
+Procedure:
+
+  1. Read `.claude/config/jira-board.json` for `assignee.account_id`
+     and `transitions["In Progress"]`. If `account_id` is null, stop
+     and tell the user to run `/jira reconfigure`.
+  2. Read `.claude/context/jira-output.md` and collect every Story,
+     Task, and Sub-task key (skip the Epic — it transitions
+     separately).
+  3. For each key, call `mcp__claude_ai_Atlassian__getJiraIssue` and
+     read `fields.assignee.accountId` + `fields.status.name`.
+       - If `assignee.accountId` is null OR != cached
+         `account_id`, print the matching refusal line from
+         `orchestrator.json#jira.refusal_lines` and SKIP.
+       - If status is already `In Progress` (or category
+         `indeterminate`), SKIP — no redundant API call.
+       - Otherwise call
+         `mcp__claude_ai_Atlassian__transitionJiraIssue` with the
+         cached `In Progress` transition id.
+  4. Also transition the Epic to `In Progress` once (same ownership
+     check applies).
+  5. Print: `→ <KEY>: <previous-status> → In Progress` per
+     transition, then one summary line:
+     `Jira: <N> tickets advanced to In Progress, <S> skipped (not owned by you), <U> already In Progress.`
+
+If `transitions["In Progress"]` is null in `jira-board.json`, call
+`getTransitionsForJiraIssue` against any owned ticket to discover and
+cache the id, then proceed. If no `In Progress` transition exists at
+all for this workflow, print one warning line and continue with the
+pipeline.
+
+---
+
 ## Step 3 — Announce the pipeline
 
 Print:
@@ -215,6 +254,32 @@ next:      Run /cicd to generate GitHub Actions workflows
 
 ---
 
+## Step 5.5 — Jira: transition your built tickets to "In Review"
+
+After all four subagents have finished and the master summary exists,
+advance the owned Story/Task tickets (NOT sub-tasks — those can stay
+`In Progress` and roll up with their parent when /review passes).
+
+Procedure (mirrors Step 2.5, but with `In Review` and a narrower
+ticket set):
+
+  1. Read `.claude/config/jira-board.json` for `assignee.account_id`
+     and `transitions["In Review"]`. Discover and cache the
+     transition id if not yet known.
+  2. From `.claude/context/jira-output.md` collect every Story and
+     Task key (skip Sub-tasks and the Epic).
+  3. For each key: re-fetch via `getJiraIssue`, ownership-check,
+     skip-if-already-target, otherwise `transitionJiraIssue` to
+     `In Review`.
+  4. Print one line per transition and a summary line:
+     `Jira: <N> tickets advanced to In Review, <S> skipped (not owned), <U> already In Review.`
+
+If `transitions["In Review"]` is null AND no matching transition is
+discoverable, leave tickets at `In Progress` and print:
+`⚠️  This workflow has no "In Review" state — leaving tickets at In Progress for /review to close.`
+
+---
+
 ## Step 6 — Tell the user
 
 Print:
@@ -225,6 +290,10 @@ Backend:   ✅ [N tables, N routes]
 Frontend:  ✅ [N pages, N components]
 QA:        ✅ [N tests, X% coverage]
 Deploy:    [✅ ready / ⚠️ issues found]
+
+Jira:
+  At start: [N] tickets → In Progress  ([S] skipped — not owned by you)
+  At end:   [N] Stories/Tasks → In Review
 
 Screenshots: .claude/screenshots/feedback/current-state/
 

@@ -166,6 +166,29 @@ A: /plan → /jira → /adr → /ux → /develop → /cicd → /review → /demo
 
 ---
 
+## Step 2.5 — Jira: close out the Epic
+
+Per `.claude/lib/core/jira-policy.md`. The demo marks the end of the
+SDLC pipeline — transition the Epic to `Done` so the board shows
+the work closed out. Stories / Tasks should already be `Done` from
+/review; if any owned ones are still open, close them too.
+
+Procedure:
+
+  1. Read `.claude/config/jira-board.json` for `assignee.account_id`
+     and `transitions["Done"]`. Discover and cache via
+     `getTransitionsForJiraIssue` if null.
+  2. Read `.claude/context/jira-output.md` for the Epic key.
+  3. `getJiraIssue` on the Epic → ownership-check (skip with the
+     refusal line if not owned by current user) → if not at `Done`
+     and a `Done` transition is available, `transitionJiraIssue`.
+  4. Sweep any owned Story / Task / Sub-task still not at `Done`
+     and transition them too (ownership-checked, skip-if-already).
+  5. Print one line per close, then summary:
+     `Jira: Epic <KEY> closed. <N> additional tickets closed. <S> skipped (not owned by you).`
+
+---
+
 ## Step 3 — Tell the user
 
 Print:
@@ -173,6 +196,7 @@ Print:
 ✅ /demo complete
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 DEMO.md written to project root.
+Jira:    Epic closed (Done). All your owned tickets closed.
 
 Pre-demo checklist is in DEMO.md.
 Review it before presenting.

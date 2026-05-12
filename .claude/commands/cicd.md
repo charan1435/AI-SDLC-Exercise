@@ -275,6 +275,16 @@ next:      Run /review for self-review and QA pass
 
 ---
 
+## Step 6.5 — Jira: no status transition for this phase
+
+Per `.claude/lib/core/jira-policy.md`, /cicd does not move tickets;
+they stay at `In Review` from /develop. (`jira.status_transitions.cicd_complete = null`.)
+
+Print one line:
+  `Jira: no transitions for /cicd (tickets remain at In Review).`
+
+---
+
 ## Step 7 — Tell the user
 
 Print:
@@ -295,6 +305,8 @@ Required GitHub Secrets to set:
   VERCEL_TOKEN
   VERCEL_ORG_ID
   VERCEL_PROJECT_ID
+
+Jira: tickets remain at In Review (no transition this phase).
 
 Handing off to /commit. Next phase after that: /review
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

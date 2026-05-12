@@ -224,6 +224,16 @@ next:               Run /develop — frontend subagent must
 
 ---
 
+## Step 8.5 — Jira: no status transition for this phase
+
+Per `.claude/lib/core/jira-policy.md`, /ux does not move tickets.
+They remain in the backlog. (`jira.status_transitions.ux_complete = null`.)
+
+Print one line:
+  `Jira: no transitions for /ux (tickets stay in backlog).`
+
+---
+
 ## Step 9 — Tell the user
 
 Print:
@@ -235,6 +245,7 @@ Components: [count] planned
 References: [using / not using]
 Styles:     [provided / defaults]
 Output:     .claude/context/ux-output.md
+Jira:       tickets remain in backlog (no transition this phase).
 
 Handing off to /commit. Next phase after that: /develop
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

@@ -59,5 +59,53 @@
       "Sub-task": "Task",
       "Subtask": "Task"
     }
+  },
+  "jira": {
+    "$comment": "Project policy for any command/agent that touches Jira via the Atlassian MCP. Canonical reference: .claude/lib/core/jira-policy.md",
+    "policy_doc": ".claude/lib/core/jira-policy.md",
+    "ownership": {
+      "only_modify_own_issues": true,
+      "skip_if_assignee_mismatch": true,
+      "jql_must_include_current_user": true,
+      "jql_template": "assignee = currentUser() AND statusCategory != Done"
+    },
+    "assignee": {
+      "always_assign_to_current_user": true,
+      "lookup_order": [
+        "jira-board.json#assignee.account_id",
+        "mcp.lookupJiraAccountId(email=jira-board.json#assignee.email)",
+        "mcp.atlassianUserInfo"
+      ],
+      "post_create_fixup_if_unassigned": true
+    },
+    "hierarchy": {
+      "create_order": ["Epic", "Story", "Task", "Subtask", "Bug"],
+      "epic_per_plan": 1,
+      "subtasks_per_story": ["backend", "frontend", "tests", "deploy-docs"],
+      "subtasks_per_task": ["implementation", "tests"],
+      "drop_inapplicable_subtasks": true
+    },
+    "backlog": {
+      "place_in_backlog": true,
+      "never_set_sprint_field": true,
+      "preserve_existing_sprint_on_update": true
+    },
+    "status_transitions": {
+      "$comment": "Phase → target status. The runtime resolves each name against the project's real workflow via getTransitionsForJiraIssue and caches the mapping in jira-board.json#transitions.",
+      "jira_create": "To Do",
+      "adr_complete": null,
+      "ux_complete": null,
+      "develop_start": "In Progress",
+      "develop_done": "In Review",
+      "cicd_complete": null,
+      "review_pass": "Done",
+      "review_fail": "In Progress",
+      "demo_complete": "Done"
+    },
+    "refusal_lines": {
+      "assignee_mismatch": "⚠️  Skipping <KEY> — assigned to <displayName>, not you. Project policy: only modify your own issues.",
+      "unassigned": "⚠️  Skipping <KEY> — unassigned. Project policy: only modify your own issues.",
+      "unknown_assignee": "⚠️  Skipping <KEY> — assigned to no one (or unable to read assignee). Project policy: only modify your own issues."
+    }
   }
 }

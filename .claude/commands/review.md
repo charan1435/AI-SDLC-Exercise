@@ -49,6 +49,45 @@ After the Agent call returns, confirm `.claude/context/review-output.md` exists.
 
 ---
 
+## Step 2.5 — Jira: transition your tickets based on review outcome
+
+Per `.claude/lib/core/jira-policy.md`. The transition depends on
+review findings:
+
+  - **Pass (no HIGH or CRITICAL findings):** transition every owned
+    Story / Task → `Done`. Sub-tasks of those Stories also → `Done`.
+  - **Fail (HIGH or CRITICAL findings remain after CRITICAL auto-fix):**
+    transition every owned Story / Task back to `In Progress` and
+    flag the failed tickets in the summary banner. Do NOT transition
+    anything to `Done` in this case.
+
+Procedure:
+
+  1. Read `.claude/context/review-output.md`. Determine pass/fail
+     from the HIGH and CRITICAL counts (after auto-fix).
+  2. Read `.claude/config/jira-board.json` for
+     `assignee.account_id` and either `transitions["Done"]` or
+     `transitions["In Progress"]` depending on outcome. Discover and
+     cache via `getTransitionsForJiraIssue` if null.
+  3. Collect Story/Task keys from `.claude/context/jira-output.md`.
+     For each:
+       - `getJiraIssue`, ownership-check (skip with refusal line if
+         not owned by current user).
+       - Skip-if-already-target.
+       - Otherwise `transitionJiraIssue` to the chosen target.
+  4. If pass: collect Sub-task keys, repeat the same checks, transition
+     to `Done`.
+  5. Print one line per transition:
+     `→ <KEY>: <prev> → Done` (or `→ In Progress`).
+  6. Print summary:
+     - Pass:  `Jira: <N> tickets closed (Done). <S> skipped (not owned).`
+     - Fail:  `Jira: <N> tickets reopened to In Progress. <S> skipped (not owned). Fix HIGH/CRITICAL findings then re-run /review.`
+
+If the workflow has no `Done` transition (rare), leave tickets at
+`In Review` and print one warning line.
+
+---
+
 ## Step 3 — Surface the summary
 
 Use the Read tool on `.claude/context/review-output.md`. Extract the counts

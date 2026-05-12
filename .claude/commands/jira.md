@@ -1,13 +1,13 @@
 ---
-description: Interactively create/update Jira Epic + Stories + Tasks (+ Bugs) from plan-output.md. First run prompts for site & project (sticky thereafter). Every story is drafted and confirmed before any Jira write. Pass `reconfigure` to force re-selecting the board.
+description: Interactively create/update Jira Epic + Stories + Sub-tasks (+ Tasks, Bugs) from plan-output.md. Only touches issues assigned to YOU. Every issue is drafted, confirmed, assigned to you, and placed in the backlog. First run prompts for site & project (sticky thereafter). Pass `reconfigure` to force re-selecting the board.
 argument-hint: "[reconfigure]   — optional. Pass to force board re-selection; otherwise the saved board is reused silently."
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
-# /jira — Decompose Plan into Jira Epic, Stories, Tasks, (Bugs)
+# /jira — Decompose Plan into Jira Epic → Stories → Sub-tasks
 
 You are the JIRA phase. You are INTERACTIVE and CAREFUL.
-You confirm every story with the user before creating or updating it in Jira.
+You confirm every issue with the user before creating or updating it in Jira.
 You do NOT write code. You do NOT commit anything yourself
 (the `/commit` skill at the end handles that).
 
@@ -19,11 +19,39 @@ get the IDs right and surface them clearly.
 
 ---
 
+## Project policy (mandatory — read before doing anything)
+
+This command obeys `.claude/lib/core/jira-policy.md`. The rules
+in that file are non-negotiable. The essentials:
+
+  1. **Ownership** — only create, edit, transition, or comment on
+     issues assigned to the current user. Before any UPDATE, fetch
+     the issue and verify assignee.accountId matches the current
+     user's accountId; skip with a refusal line if it doesn't.
+  2. **Assignee** — every newly-created issue is assigned to the
+     current user via `assignee.accountId`. No unassigned tickets.
+     No tickets assigned to other people.
+  3. **Hierarchy** — Epic (1 per /plan run) → Stories / Tasks
+     (parent: Epic) → Sub-tasks (parent: Story or Task). Default
+     sub-task slices per Story: `backend`, `frontend`, `tests`,
+     `deploy-docs` (drop inapplicable slices).
+  4. **Backlog** — never set the Sprint field. Issues land in the
+     backlog by default.
+  5. **Status** — new issues are created in the board's first /
+     backlog status (typically `To Do`). Phase commands later
+     transition them through `In Progress` → `In Review` → `Done`.
+
+Read `.claude/lib/core/jira-policy.md` once at the top of this run
+so you have the full text in context. Then proceed.
+
+---
+
 ## Step 1 — Read prior context
 
 Use the Read tool to load:
-  - `.claude/context/plan-output.md`  (required — stop with a clear error if missing)
-  - `.claude/config/orchestrator.json` (for the commit-type mapping)
+  - `.claude/lib/core/jira-policy.md`  (required — the ownership/hierarchy/status rules below depend on this)
+  - `.claude/context/plan-output.md`   (required — stop with a clear error if missing)
+  - `.claude/config/orchestrator.json` (for the commit-type mapping and `jira` policy block)
   - `.claude/config/jira-board.json`   (may not exist — that signals first run)
   - `.claude/context/jira-output.md`   (may not exist — that signals fresh /jira)
 
@@ -105,6 +133,76 @@ Procedure:
 
 Print:
   `✓ Jira target saved: <site_url> / <project_key>`
+
+---
+
+## Step 2.5 — Resolve current user's accountId (REQUIRED)
+
+This run will create and update issues. Every write must be scoped to
+the current user. Resolve their Jira `accountId` now, before any
+draft is shown.
+
+Procedure (stop and fail if none of these succeed):
+
+  1. Read `.claude/config/jira-board.json`. If
+     `assignee.account_id` is set to a non-null string, use it as
+     `CURRENT_USER_ACCOUNT_ID` and skip to step 4.
+  2. If `assignee.email` is set, call
+     `mcp__claude_ai_Atlassian__lookupJiraAccountId` with that
+     email. If it returns an accountId, use it.
+  3. Otherwise call
+     `mcp__claude_ai_Atlassian__atlassianUserInfo` for the
+     currently authenticated user and read `account_id` from the
+     response.
+  4. Write the resolved accountId (and the email, if discovered) back
+     to `jira-board.json` under `assignee.account_id` /
+     `assignee.email`. Use Edit, not Write, so the rest of the file
+     stays intact.
+
+If steps 1–3 all fail:
+  Print: "⚠️  Cannot resolve current user's Jira accountId. Run /jira reconfigure to capture it, or set assignee.email in .claude/config/jira-board.json."
+  Stop.
+
+Print one line:
+  `✓ Resolved current user accountId: <short-id-prefix>...  (you are <displayName>)`
+
+This `CURRENT_USER_ACCOUNT_ID` is used:
+  - As the `assignee` field on every `createJiraIssue` call.
+  - As the ownership check before every `editJiraIssue` or
+    `transitionJiraIssue` call.
+  - As the `assignee = currentUser()` filter in JQL queries.
+
+---
+
+## Step 2.6 — Resolve the workflow transition IDs (REQUIRED)
+
+This run will create issues; subsequent /develop, /review, /demo
+phases will transition them. Capture the transition IDs once and
+cache.
+
+If `jira-board.json#transitions` already has non-null IDs for the
+four states (`To Do`, `In Progress`, `In Review`, `Done`), skip this
+step.
+
+Otherwise: pick any one Story-type issue in the project (or create a
+throwaway placeholder if the project has zero issues — but only after
+asking the user with AskUserQuestion: "Create a temporary Story to
+discover workflow transitions? It will be deleted at the end."). Call
+`mcp__claude_ai_Atlassian__getTransitionsForJiraIssue` against it.
+
+For each target name in `orchestrator.json#jira.status_transitions`
+that is non-null (`To Do`, `In Progress`, `In Review`, `Done`),
+match against the returned transition list:
+  - Exact name match (case-insensitive) wins.
+  - Otherwise, substring match. If multiple match, prefer the
+    transition that takes the issue toward `Done` from the current
+    column (use `to.statusCategory` to disambiguate: `new`,
+    `indeterminate`, `done`).
+  - Record the transition `id` under `jira-board.json#transitions`.
+
+If a transition cannot be resolved (e.g. workflow has no `In Review`
+column), leave it `null` and print:
+  `⚠️  No transition found for "<name>". /review will skip this step.`
 
 ---
 
@@ -246,18 +344,57 @@ AND   <additional outcome>
   - Otherwise, embed them inside Description under the
     `Acceptance Criteria:` heading shown above.
 
+### Sub-task slices (drafted for every Story / Task)
+
+Immediately after each Story (or Task) draft, also draft its Sub-tasks
+using the canonical slice set from
+`orchestrator.json#jira.hierarchy.subtasks_per_story`:
+
+```
+  ─── Sub-tasks of <Story summary> ───
+  ├── backend       — schema, API routes, server-side logic for "<story>"
+  ├── frontend      — pages and components for "<story>"
+  ├── tests         — unit + component + e2e coverage for "<story>"
+  └── deploy-docs   — env vars, README updates, deploy checklist for "<story>"
+```
+
+Drop slices that don't apply (e.g. a docs-only Task gets no `backend`
+or `frontend` slice). Each Sub-task draft has:
+
+```
+Summary:     [<parent summary>] <slice>: <one-line action>
+Issue Type:  Sub-task              (use `issue_types.subtask` from jira-board.json)
+Parent:      <parent Story/Task key, or "—" if parent is being created in this run>
+Assignee:    <current user displayName>   (from Step 2.5)
+Priority:    inherits parent
+
+Description:
+## Scope
+- <slice-specific bullet>
+- <slice-specific bullet>
+
+## Definition of Done
+- <slice-specific bullet>
+```
+
+The parent link for a Sub-task uses the project's `parent` field, not
+the Epic Link custom field. The Sub-task's "grandparent" Epic is
+inferred by Jira via the parent Story.
+
 ---
 
-## Step 6 — Confirm each Story with the user
+## Step 6 — Confirm each Story (and its Sub-tasks) with the user
 
-For each drafted story, after printing the full draft block:
+For each drafted story, after printing the full draft block AND the
+Sub-task slice block from Step 5:
 
 AskUserQuestion:
-  Question: "How should we handle this story?"
+  Question: "How should we handle this story (and its sub-tasks)?"
   Options:
-    - "Create / Update as-is"   (apply to Jira)
+    - "Create / Update as-is"   (apply Story + every Sub-task to Jira)
     - "Edit before applying"    (prompt for which field; redraw; re-ask)
-    - "Skip this one"
+    - "Edit sub-task slices"    (toggle which slices to include / drop)
+    - "Skip this one"           (skip story AND its sub-tasks)
     - "Cancel /jira"            (abort everything, write nothing to Jira
                                   or to jira-output.md)
 
@@ -268,43 +405,111 @@ If "Edit before applying":
   - Take free-form input for the new value.
   - Redraw the full draft block. Re-ask the outer question.
 
-Maintain three running buckets:
-  - approved_creates
-  - approved_updates
+If "Edit sub-task slices":
+  - AskUserQuestion (multi-select if available) which slices to keep
+    from `backend`, `frontend`, `tests`, `deploy-docs`. Default = all.
+  - Optionally accept free-form text to ADD a custom slice (e.g.
+    `migrations`, `analytics`). Redraw and re-ask.
+
+Maintain five running buckets:
+  - approved_creates_epic
+  - approved_creates_stories_tasks   (Story / Task, parent = Epic)
+  - approved_creates_subtasks        (Sub-task, parent = Story/Task)
+  - approved_updates                 (any issue type, ownership-checked)
   - skipped
 
 ---
 
 ## Step 7 — Apply to Jira
 
-Process approved buckets sequentially. Stop on cancel.
+Process approved buckets in this **fixed order** (so parent keys are
+known before children are created). Stop on cancel.
 
-### CREATE
+  1. `approved_creates_epic`           → must exist before stories
+  2. `approved_creates_stories_tasks`  → must exist before sub-tasks
+  3. `approved_creates_subtasks`       → use parent keys from step 2
+  4. `approved_updates`                → ownership-checked per issue
 
-For each item in `approved_creates`, call:
-  `mcp__claude_ai_Atlassian__createJiraIssue` with:
-    cloudId          = jira-board.json cloud_id
-    projectKey       = jira-board.json project_key
-    issueTypeName    = matching value from jira-board.json issue_types
-    summary          = draft.summary
-    description      = draft.description (markdown)
-    Custom fields:
-      - epic-link or parent = epic key
-      - acceptance_criteria = draft.ac (only if `fields.acceptance_criteria` is set)
-    priority (if available on the project)
-    assignee = current user (lookup via
-              `mcp__claude_ai_Atlassian__lookupJiraAccountId` if needed)
+Every `createJiraIssue` call MUST include the assignee field. Every
+issue MUST land in the backlog (do NOT set the Sprint field).
 
-Capture the returned key (e.g. `PROJ-7`). Print `✓ PROJ-7 created`.
+### CREATE — Epic (step 1)
 
-### UPDATE
+Call `mcp__claude_ai_Atlassian__createJiraIssue` with:
+  - cloudId        = jira-board.json#cloud_id
+  - projectKey     = jira-board.json#project_key
+  - issueTypeName  = jira-board.json#issue_types.epic
+  - summary        = draft.summary
+  - description    = draft.description (markdown)
+  - assignee       = { accountId: CURRENT_USER_ACCOUNT_ID }
+  - priority       (if available on the project)
+  - **No Sprint field.**
 
-For each item in `approved_updates`, call:
-  `mcp__claude_ai_Atlassian__editJiraIssue` with the existing key,
-  sending ONLY the changed fields (so you don't blow away any human
-  edits made in Jira).
+If the create response shows the issue is unassigned (some workflows
+suppress `assignee` on create), immediately follow with
+`editJiraIssue` setting `assignee = { accountId: CURRENT_USER_ACCOUNT_ID }`
+and print `✓ <EPIC-KEY> assigned to you`.
 
-Capture the key for the map. Print `✓ PROJ-3 updated`.
+Capture the returned key. Print `✓ <EPIC-KEY> created (assigned to you, backlog)`.
+
+### CREATE — Stories / Tasks (step 2)
+
+For each item in `approved_creates_stories_tasks`, call
+`createJiraIssue` with the same shape as the Epic, plus:
+  - The parent-link field set to the Epic key:
+      * Team-managed Jira: `parent = { key: "<EPIC-KEY>" }`
+      * Classic Jira: `<jira-board.json#fields.epic_link> = "<EPIC-KEY>"`
+    The first run of /jira recorded the correct field. Use it.
+  - acceptance_criteria = draft.ac (only if `fields.acceptance_criteria` is set)
+  - **No Sprint field.**
+
+Print `✓ <STORY-KEY> created (assigned to you, parent: <EPIC-KEY>, backlog)`.
+
+### CREATE — Sub-tasks (step 3)
+
+For each item in `approved_creates_subtasks`, call `createJiraIssue` with:
+  - issueTypeName  = jira-board.json#issue_types.subtask
+  - parent         = { key: "<parent Story/Task key from step 2>" }
+  - assignee       = { accountId: CURRENT_USER_ACCOUNT_ID }
+  - **Do NOT** set the Epic Link custom field on Sub-tasks. Jira
+    derives the Epic from the parent Story.
+  - **No Sprint field.**
+
+Print `✓ <SUBTASK-KEY> created (slice: <slice-name>, parent: <STORY-KEY>)`.
+
+### UPDATE — ownership pre-check (step 4)
+
+For each item in `approved_updates`:
+
+  1. Call `mcp__claude_ai_Atlassian__getJiraIssue` for the existing key.
+  2. Read `fields.assignee`.
+  3. If `fields.assignee` is null:
+       Print the unassigned refusal line from
+       `orchestrator.json#jira.refusal_lines.unassigned` (substituting `<KEY>`).
+       Move on. Do NOT attempt the edit.
+  4. If `fields.assignee.accountId` != `CURRENT_USER_ACCOUNT_ID`:
+       Print the assignee_mismatch refusal line (substituting `<KEY>`
+       and `<displayName>`).
+       Move on. Do NOT attempt the edit.
+  5. Otherwise, call `mcp__claude_ai_Atlassian__editJiraIssue` with
+     the existing key, sending **only the changed fields** (don't
+     overwrite human edits to other fields). **Never** include the
+     Sprint field in the edit — preserve whatever sprint state a
+     human set in Jira.
+
+Capture the key for the map. Print `✓ <KEY> updated`.
+
+### Initial-status confirmation
+
+Newly created issues should land in the board's first/backlog
+status (the configured `jira.status_transitions.jira_create` from
+`orchestrator.json`, default `To Do`). For each issue created in
+this run, call `getTransitionsForJiraIssue`. If the current status
+is not the target backlog status AND a transition exists, call
+`transitionJiraIssue` to move it there. If no transition is
+available (e.g. workflow already starts at the right column), skip.
+
+Print one line per transition: `→ <KEY>: <current> → To Do`.
 
 ### Error handling
 
@@ -323,6 +528,8 @@ generated: <ISO timestamp>
 site:      <site_url>
 project:   <project_key>
 epic:      <EPIC-KEY>
+assignee:  <displayName> (<accountId>)
+backlog:   all issues in backlog (no Sprint field set)
 
 ## Epic
 - <EPIC-KEY>: <summary> — type: Epic → commit Type: Feature
@@ -333,6 +540,10 @@ epic:      <EPIC-KEY>
 
 ## Tasks
 - <KEY>: <summary> — type: Task → commit Type: Task       (parent: <EPIC-KEY> or <STORY-KEY>)
+
+## Sub-tasks
+- <KEY>: [<parent summary>] <slice>: <action> — type: Sub-task → commit Type: inherits parent (parent: <STORY-KEY>)
+- <KEY>: [<parent summary>] <slice>: <action> — type: Sub-task → commit Type: inherits parent (parent: <STORY-KEY>)
 
 ## Bugs
 - <KEY>: <summary> — type: Bug  → commit Type: Bugfix
@@ -374,8 +585,10 @@ Examples:
 
 ---HANDOFF---
 agent:     jira
-completed: <Nc> created, <Nu> updated, <Ns> skipped
+completed: <Nc> created (<Ne> epic, <Nst> stories/tasks, <Nsub> sub-tasks), <Nu> updated, <Ns> skipped, <No> ownership-refused
 epic:      <EPIC-KEY>
+assignee:  <displayName> (accountId: <accountId>)
+backlog:   all newly-created issues placed in backlog (no Sprint field set)
 target:    <site_url> / <project_key>
 next:      Run /adr to lock the architecture before code starts
 ---END---
@@ -390,13 +603,18 @@ Print:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ /jira complete
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Site:    <site_url>
-Project: <project_key>
-Epic:    <EPIC-KEY> — <summary>
-Created: <Nc>
-Updated: <Nu>
-Skipped: <Ns>
-All tickets assigned to you.
+Site:     <site_url>
+Project:  <project_key>
+Epic:     <EPIC-KEY> — <summary>
+Assignee: <displayName> (you)
+Created:  <Nc>  (Epic: <Ne>, Stories/Tasks: <Nst>, Sub-tasks: <Nsub>)
+Updated:  <Nu>
+Skipped:  <Ns>
+Refused:  <No>   (← issues not assigned to you — left untouched)
+
+All newly-created tickets are assigned to you and live in the backlog
+(no Sprint field set). Phase commands will transition them through
+To Do → In Progress → In Review → Done as work progresses.
 
 Map saved: .claude/context/jira-output.md
 Config:    .claude/config/jira-board.json

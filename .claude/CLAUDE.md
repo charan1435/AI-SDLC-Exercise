@@ -165,6 +165,62 @@ tree" to "commit on remote". This is non-negotiable.
 
 ---
 
+## Jira Policy (PROJECT-WIDE — APPLIES TO EVERY COMMAND AND AGENT)
+
+Canonical source: `.claude/lib/core/jira-policy.md`. The five rules:
+
+  1. **Ownership** — only create, edit, transition, or comment on
+     issues whose `assignee.accountId` matches the current user.
+     Before any UPDATE/TRANSITION, fetch the issue and verify
+     assignee; skip with a refusal line if it does not match. JQL
+     queries against Jira MUST include
+     `assignee = currentUser()`.
+  2. **Assignee on create** — every newly-created issue is assigned
+     to the current user. No unassigned tickets, no tickets assigned
+     to anyone else.
+  3. **Hierarchy** — every plan decomposes into:
+     `Epic` (1 per /plan run) → `Story` / `Task` (parent: Epic) →
+     `Sub-task` (parent: Story or Task). Canonical sub-task slices
+     per Story: `backend`, `frontend`, `tests`, `deploy-docs`. Drop
+     inapplicable slices. Bugs are siblings of Stories under the Epic.
+  4. **Backlog** — newly created issues land in the backlog. Never
+     set the Sprint field. Preserve existing Sprint membership on
+     update.
+  5. **Status transitions per SDLC phase** — the orchestrator
+     advances tickets as work progresses, owned-only:
+
+     | Phase            | Owned Story/Task target | Sub-tasks   | Epic        |
+     |------------------|-------------------------|-------------|-------------|
+     | `/jira` create   | `To Do` (backlog)       | `To Do`     | `To Do`     |
+     | `/adr`, `/ux`    | (no change)             | (no change) | (no change) |
+     | `/develop` start | `In Progress`           | `In Progress` | `In Progress` |
+     | `/develop` done  | `In Review`             | (stay)      | (stay)      |
+     | `/cicd`          | (no change)             | (no change) | (no change) |
+     | `/review` pass   | `Done`                  | `Done`      | (stay)      |
+     | `/review` fail   | `In Progress`           | (stay)      | (stay)      |
+     | `/demo`          | (already Done)          | (already)   | `Done`      |
+
+     Transition IDs are discovered once via
+     `getTransitionsForJiraIssue` and cached in
+     `.claude/config/jira-board.json#transitions`. Display names that
+     don't match map by closest substring against `to.statusCategory`.
+
+Config:
+  - `.claude/config/orchestrator.json#jira`   policy block (machine-readable)
+  - `.claude/config/jira-board.json#assignee` cached accountId / email
+  - `.claude/config/jira-board.json#transitions` cached transition IDs
+
+Forbidden tools (no command or agent may invoke these against issues
+owned by other users):
+  - `mcp__claude_ai_Atlassian__editJiraIssue` (ownership-check required)
+  - `mcp__claude_ai_Atlassian__transitionJiraIssue` (ownership-check required)
+  - `mcp__claude_ai_Atlassian__addCommentToJiraIssue`
+  - `mcp__claude_ai_Atlassian__addWorklogToJiraIssue`
+  - `mcp__claude_ai_Atlassian__createIssueLink` against non-owned issues
+  - Any JQL query that omits `assignee = currentUser()`
+
+---
+
 ## Security Rules (enforced by hooks + permissions)
 NEVER commit   : .env .env.local .env.production .env.*
 NEVER hardcode : API keys, passwords, tokens, secrets

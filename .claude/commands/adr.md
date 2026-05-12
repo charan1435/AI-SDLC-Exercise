@@ -217,6 +217,17 @@ next:      Run /ux to produce wireframes and collect design references
 
 ---
 
+## Step 3.5 — Jira: no status transition for this phase
+
+Per `.claude/lib/core/jira-policy.md`, /adr does not move tickets.
+They remain in the backlog (typically `To Do`) — that's the
+configured `jira.status_transitions.adr_complete = null` mapping.
+
+Print one line:
+  `Jira: no transitions for /adr (tickets stay in backlog).`
+
+---
+
 ## Step 4 — Tell the user
 
 Print:
@@ -226,6 +237,7 @@ Print:
 ADR.md written to project root.
 Stack confirmed. Data model defined.
 Output: .claude/context/adr-output.md
+Jira:   tickets remain in backlog (no transition this phase).
 
 Handing off to /commit. Next phase after that: /ux
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
