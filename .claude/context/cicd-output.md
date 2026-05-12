@@ -5,9 +5,16 @@ command:   /cicd
 ## Files generated
 
   - `.github/workflows/ci.yml`               — lint, typecheck, unit+component tests, DB invariant tests, e2e tests, build (triggered on push to `master`/`develop` and on PR to `master`)
-  - `.github/workflows/preview.yml`          — Vercel preview deploy + PR comment with URL (triggered on PR to `master`)
-  - `.github/workflows/deploy.yml`           — production deploy: `supabase db push` migrations + Vercel `--prod` (triggered on push to `master`)
   - `.github/pull_request_template.md`       — Jira-linked PR template aligned to AIEX board + project security checklist
+
+## Post-/cicd cleanup (simplification adopted)
+
+  Originally `/cicd` also generated `.github/workflows/preview.yml` and `.github/workflows/deploy.yml`. **These were deleted** after setting up Vercel's native GitHub integration, because they duplicated what Vercel already does:
+    - Vercel native integration auto-creates **preview deployments on every PR** (replaces `preview.yml`).
+    - Vercel native integration **auto-deploys `master` to production** on every push (replaces `deploy.yml`).
+  Keeping both would have produced **double-deployments** for the same commit on every push. Net result of the cleanup: CI runs in GitHub Actions; CD runs in Vercel; no duplicate work.
+
+  Migrations are applied **manually via the Supabase SQL Editor** for the 5 existing migrations. If schema changes become frequent, re-introduce a minimal `deploy.yml` containing only the `npx supabase db push` step (no Vercel deploy step) and add `SUPABASE_ACCESS_TOKEN` + `SUPABASE_DB_PASSWORD` as GitHub secrets.
 
 ## Adjustments from the /cicd template
 
@@ -20,34 +27,33 @@ command:   /cicd
 
 ## Required GitHub Secrets (Settings → Secrets and variables → Actions)
 
-| Secret name                          | Used by                  | Where to get it                                                       |
-|--------------------------------------|--------------------------|-----------------------------------------------------------------------|
-| `NEXT_PUBLIC_SUPABASE_URL`           | ci.yml (build), preview, deploy | Supabase Dashboard → Project Settings → API → Project URL (production project) |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`      | ci.yml (build), preview, deploy | Supabase Dashboard → Project Settings → API → `anon` `public` key (production)  |
-| `SUPABASE_TEST_URL`                  | ci.yml (test job)        | Project URL of a SEPARATE Supabase test project (do not reuse production) |
-| `SUPABASE_TEST_ANON_KEY`             | ci.yml (test job)        | `anon` key of the test project                                         |
-| `SUPABASE_TEST_SERVICE_ROLE_KEY`     | ci.yml (test job)        | `service_role` key of the test project (used by Playwright fixtures to seed users) |
-| `SUPABASE_ACCESS_TOKEN`              | deploy.yml               | Supabase Dashboard → Account → Access Tokens → Generate new           |
-| `SUPABASE_DB_PASSWORD`               | deploy.yml               | Supabase Dashboard → Project Settings → Database → Connection string (the password portion) |
-| `VERCEL_TOKEN`                       | preview.yml, deploy.yml  | Vercel Dashboard → Settings → Tokens → Create                          |
-| `VERCEL_ORG_ID`                      | preview.yml, deploy.yml  | Run `vercel link` locally, then `.vercel/project.json` → `orgId`        |
-| `VERCEL_PROJECT_ID`                  | preview.yml, deploy.yml  | Same `.vercel/project.json` → `projectId`                              |
+After the post-/cicd cleanup, only `ci.yml` remains. The secret list shrinks to **2 required + 3 optional** (the rest were for the deleted deploy/preview workflows).
 
-## Manual setup steps (one-time, BEFORE first push to master triggers the workflows)
+| Tier | Secret name                          | Used by                  | Required? | Where to get it                                                       |
+|------|--------------------------------------|--------------------------|-----------|-----------------------------------------------------------------------|
+| 1    | `NEXT_PUBLIC_SUPABASE_URL`           | ci.yml (build job)       | ✅ Yes    | Supabase Dashboard → Project Settings → API → Project URL (production project) |
+| 1    | `NEXT_PUBLIC_SUPABASE_ANON_KEY`      | ci.yml (build job)       | ✅ Yes    | Supabase Dashboard → Project Settings → API → `anon` `public` key (production)  |
+| 2    | `SUPABASE_TEST_URL`                  | ci.yml (test:db, test:e2e) | ⚪ Optional | Project URL of a SEPARATE Supabase test project — only needed to unblock 41 skipped tests in CI |
+| 2    | `SUPABASE_TEST_ANON_KEY`             | ci.yml (test:db, test:e2e) | ⚪ Optional | `anon` key of the test project                                         |
+| 2    | `SUPABASE_TEST_SERVICE_ROLE_KEY`     | ci.yml (test:db, test:e2e) | ⚪ Optional | `service_role` key of the test project (used by Playwright fixtures)   |
 
-  1. **Create a TEST Supabase project** — separate from production. Apply the same 5 migrations from `supabase/migrations/` via the SQL Editor. This unblocks the DB + e2e tests in CI.
-  2. **Link the deploy workflow's Supabase project** — locally run `npx supabase login`, then `npx supabase link --project-ref <your-production-project-ref>`. This creates `supabase/config.toml` with the linked project (already committed to the repo or needs to be added — verify on first run).
-  3. **Create a Vercel project** — `npx vercel link` in the repo root. Pick "Link to existing project" if you've manually created one, or "Create new project". This writes `.vercel/project.json` with the IDs you need for the `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` secrets. Note: `.vercel/` is in `.gitignore` by default and should stay there.
-  4. **Add the 10 secrets above to GitHub** (Settings → Secrets and variables → Actions).
-  5. **Push a test PR** to verify all three workflows trigger and pass.
+Vercel deploys (preview + production) are handled by **Vercel's native GitHub integration**, not GitHub Actions. Configure those via Vercel Dashboard → Project Settings → Git, plus the env vars (Supabase URL + anon key) in Vercel Dashboard → Project Settings → Environment Variables. No GitHub Vercel secrets are needed.
+
+## Manual setup steps (one-time)
+
+  1. **Add the 2 required GitHub secrets** — `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from your production Supabase project (Settings → Secrets and variables → Actions → New repository secret).
+  2. **Set the same 2 vars in Vercel** — Vercel Dashboard → Project Settings → Environment Variables. Already done as part of the "Import from GitHub" flow.
+  3. **Configure Supabase Auth URL** — Supabase Dashboard → Authentication → URL Configuration. Set Site URL = your Vercel production URL; add `https://<vercel-url>/auth/callback` to Redirect URLs.
+  4. **Apply migrations to production Supabase** — manually paste each of the 5 SQL files from `supabase/migrations/` into the Supabase SQL Editor and Run. (Or use `supabase db push` locally if you've linked the CLI.)
+  5. **Push to master** — Vercel auto-deploys; GitHub Actions runs `ci.yml`; both should go green.
+  6. **(Optional, later)** create a TEST Supabase project + add the 3 `SUPABASE_TEST_*` secrets to unblock DB + e2e tests in CI.
 
 ## Known gaps / follow-ups
 
-  - **`supabase link` is a one-time manual step** — there's no CI bootstrap that runs it. If the first `deploy.yml` run fails with "project not linked", run `supabase link` locally and commit the resulting `supabase/config.toml`.
-  - **No automated Jira comment-on-deploy** — the /cicd template description mentioned it but the YAML doesn't implement it. Out of scope for this MVP; can be added with a small `actions/github-script` step + the Atlassian REST API + a `JIRA_API_TOKEN` secret if needed.
-  - **No environment matrix** — workflows assume Node 20 only. Adequate for this project.
+  - **Auto-applied migrations on deploy** — currently manual. If schema changes become frequent, add a minimal `deploy.yml` with just the `npx supabase db push` step + `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` secrets (skip the Vercel deploy step — Vercel native handles that).
+  - **No automated Jira comment-on-deploy** — out of scope for this MVP; can be added later via a small `actions/github-script` step + the Atlassian REST API + a `JIRA_API_TOKEN` secret.
+  - **No environment matrix** — `ci.yml` assumes Node 20 only. Adequate for this project.
   - **No status-checks branch protection** — set this up manually in GitHub Settings → Branches → Branch protection rules → require `Lint and Type Check`, `Tests`, `Build` to pass before merge to `master`.
-  - **Vercel auto-deploy from GitHub integration** — if you connect Vercel directly to the repo (not just via the GitHub Action), Vercel will also auto-deploy on push. That's an alternative to the `deploy.yml` workflow above. Pick one to avoid duplicate deployments.
 
 ## Tickets touched
 
