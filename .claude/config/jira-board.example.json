@@ -1,0 +1,20 @@
+{
+  "$comment": "EXAMPLE FILE — committed for reference only. The real file at .claude/config/jira-board.json is gitignored and per-user; /jira's first-run flow creates it interactively. To force re-selection later, run `/jira reconfigure`.",
+
+  "cloud_id":  "11111111-2222-3333-4444-555555555555",
+  "site_url":  "https://yourworkspace.atlassian.net",
+  "project_key": "PROJ",
+
+  "issue_types": {
+    "epic":    "Epic",
+    "story":   "Story",
+    "task":    "Task",
+    "bug":     "Bug",
+    "subtask": "Sub-task"
+  },
+
+  "fields": {
+    "epic_link":           "customfield_10014",
+    "acceptance_criteria": "customfield_10015"
+  }
+}

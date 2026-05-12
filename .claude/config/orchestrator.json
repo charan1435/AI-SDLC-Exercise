@@ -1,0 +1,63 @@
+{
+  "$comment": "Project-specific config for the SDLC orchestrator. Read by hook scripts and slash commands. NOT read by the Claude Code harness itself (that's .claude/settings.json).",
+  "screenshots": {
+    "reference_dir": ".claude/screenshots/reference",
+    "feedback_dir": ".claude/screenshots/feedback",
+    "current_state_dir": ".claude/screenshots/feedback/current-state",
+    "iterations_dir": ".claude/screenshots/feedback/iterations",
+    "max_iterations": 3,
+    "auto_capture": true,
+    "pages_to_capture": [
+      "/",
+      "/products",
+      "/cart",
+      "/checkout",
+      "/dashboard",
+      "/login",
+      "/signup"
+    ]
+  },
+  "context": {
+    "dir": ".claude/context",
+    "files": {
+      "plan": ".claude/context/plan-output.md",
+      "jira": ".claude/context/jira-output.md",
+      "adr": ".claude/context/adr-output.md",
+      "ux": ".claude/context/ux-output.md",
+      "backend": ".claude/context/backend-output.md",
+      "frontend": ".claude/context/frontend-output.md",
+      "qa": ".claude/context/qa-output.md",
+      "deploy": ".claude/context/deploy-output.md",
+      "develop": ".claude/context/develop-output.md",
+      "cicd": ".claude/context/cicd-output.md",
+      "review": ".claude/context/review-output.md"
+    }
+  },
+  "security": {
+    "block_env_commit": true,
+    "block_secret_hardcode": true,
+    "scan_on_write": true,
+    "blocked_patterns": [
+      ".env",
+      ".env.local",
+      ".env.production",
+      ".env.staging",
+      ".env.development",
+      ".env.test"
+    ]
+  },
+  "commit": {
+    "convention": "<JIRA-ID>:<Type>/<short description>",
+    "require_jira_ticket": true,
+    "subject_pattern": "^[A-Z][A-Z0-9]+-[0-9]+:(Feature|Bugfix|Hotfix|Chore|Refactor|Docs|Test|Task)/.+",
+    "allowed_types": ["Feature", "Bugfix", "Hotfix", "Chore", "Refactor", "Docs", "Test", "Task"],
+    "jira_type_to_commit_type": {
+      "Story": "Feature",
+      "Epic": "Feature",
+      "Bug": "Bugfix",
+      "Task": "Task",
+      "Sub-task": "Task",
+      "Subtask": "Task"
+    }
+  }
+}
