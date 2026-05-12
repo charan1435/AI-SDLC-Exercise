@@ -48,3 +48,16 @@ Thumbs.db
 *.mov
 *.wmv
 
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+.env.development
+.env.test
+*.env
+
+# Raw spec / design artifacts (do not commit)
+.claude/context/*.docx
+.claude/context/*.pdf
