@@ -9,7 +9,7 @@ interface ClosedRoundsListProps {
     id: string
     title: string
     status: string
-    closed_at: string | null
+    closing_date: string | null
     created_at: string
   }>
 }
@@ -37,8 +37,8 @@ export function ClosedRoundsList({ rounds }: ClosedRoundsListProps) {
   return (
     <div className="space-y-3">
       {rounds.map((round) => {
-        const closedDate = round.closed_at
-          ? new Date(round.closed_at).toLocaleDateString('en-US', {
+        const closedDate = round.closing_date
+          ? new Date(round.closing_date).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'short',
               day: 'numeric',

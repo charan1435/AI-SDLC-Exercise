@@ -9,7 +9,7 @@ interface RoundDetailsProps {
     id: string
     title: string
     status: string
-    closed_at: string | null
+    closing_date: string | null
     created_at: string
   }
   proposals: Array<{
@@ -44,13 +44,11 @@ export function RoundDetails({
   winnerVotes,
   totalVotes,
 }: RoundDetailsProps) {
-  const closedDate = round.closed_at
-    ? new Date(round.closed_at).toLocaleDateString('en-US', {
+  const closedDate = round.closing_date
+    ? new Date(round.closing_date).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
       })
     : 'Date unknown'
 

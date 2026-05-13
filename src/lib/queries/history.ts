@@ -10,9 +10,9 @@ export async function getClosedRounds() {
 
   const { data, error } = await supabase
     .from('rounds')
-    .select('id, title, status, closed_at, created_at')
+    .select('id, title, status, closing_date, created_at')
     .eq('status', 'closed')
-    .order('closed_at', { ascending: false })
+    .order('closing_date', { ascending: false })
 
   if (error) {
     console.error('Error fetching closed rounds:', error)
@@ -23,7 +23,7 @@ export async function getClosedRounds() {
     id: string
     title: string
     status: string
-    closed_at: string | null
+    closing_date: string | null
     created_at: string
   }>
 }
@@ -39,7 +39,7 @@ export async function getRoundDetails(roundId: string) {
   // Fetch round metadata
   const { data: roundData, error: roundError } = await supabase
     .from('rounds')
-    .select('id, title, status, closed_at, created_at')
+    .select('id, title, status, closing_date, created_at')
     .eq('id', roundId)
     .single()
 
