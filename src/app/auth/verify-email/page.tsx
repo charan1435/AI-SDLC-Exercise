@@ -29,23 +29,37 @@ export default function VerifyEmailPage() {
         } = await supabase.auth.getUser()
 
         if (userError || !user) {
+          console.error('User error:', userError)
           setError('No user found. Please click the verification link from your email.')
           setLoading(false)
           return
         }
 
+        console.log('Current user:', user.id, user.email)
+
         // Mark email as verified in the database
-        const { error: updateError } = await supabase
+        const { data: updateData, error: updateError } = await supabase
           .from('users')
           .update({ email_verified: true })
           .eq('id', user.id)
 
         if (updateError) {
           console.error('Update verification error:', updateError)
-          setError(updateError.message || 'Failed to mark email as verified')
+          setError(`Update failed: ${updateError.message}`)
           setLoading(false)
           return
         }
+
+        console.log('Update successful:', updateData)
+
+        // Verify the update worked by reading back
+        const { data: verifyData, error: verifyError } = await supabase
+          .from('users')
+          .select('email_verified')
+          .eq('id', user.id)
+          .single()
+
+        console.log('Verification check:', verifyData, verifyError)
 
         toast.success('Email verified successfully!')
         setLoading(false)

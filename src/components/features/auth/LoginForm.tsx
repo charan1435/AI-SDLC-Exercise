@@ -46,14 +46,21 @@ export function LoginForm() {
         })
         if (signInError) throw signInError
 
-        // Check if email is verified
-        const { data: userData } = await supabase
+        // Check if email is verified (normalize to lowercase)
+        const { data: userData, error: queryError } = await supabase
           .from('users')
           .select('email_verified')
-          .eq('email', email.trim())
+          .eq('email', email.trim().toLowerCase())
           .single()
 
-        if (!userData?.email_verified) {
+        if (queryError) {
+          console.error('Query error:', queryError)
+          throw new Error('Failed to verify email status')
+        }
+
+        console.log('User data:', userData)
+
+        if (userData && !userData.email_verified) {
           // Sign them back out if not verified
           await supabase.auth.signOut()
           setError('Please verify your email before signing in. Check your inbox for the verification link.')
