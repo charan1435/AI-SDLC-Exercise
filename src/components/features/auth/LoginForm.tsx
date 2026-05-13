@@ -140,10 +140,10 @@ export function LoginForm() {
         // Verification sent message
         <div className="space-y-4">
           <p className="text-sm text-zinc-600">
-            We've sent a verification link to <strong>{email}</strong>. Click the link in your email to verify your address.
+            We&apos;ve sent a verification link to <strong>{email}</strong>. Click the link in your email to verify your address.
           </p>
           <p className="text-xs text-zinc-500">
-            After verifying, you'll be able to sign in with your email and password.
+            After verifying, you&apos;ll be able to sign in with your email and password.
           </p>
 
           {error && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>}

@@ -87,7 +87,7 @@ export function ClosedRoundCard({ round }: ClosedRoundCardProps) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-sm mx-4 shadow-lg">
             <h3 className="font-bold text-lg text-zinc-950 mb-2">
-              Delete "{round.title}"?
+              Delete &quot;{round.title}&quot;?
             </h3>
             <p className="text-zinc-600 text-sm mb-6">
               This will permanently remove this round and all associated data. This action cannot be undone.
