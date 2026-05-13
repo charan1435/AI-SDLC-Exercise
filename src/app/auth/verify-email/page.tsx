@@ -30,6 +30,7 @@ export default function VerifyEmailPage() {
 
         if (userError || !user) {
           setError('No user found. Please click the verification link from your email.')
+          setLoading(false)
           return
         }
 
@@ -42,6 +43,7 @@ export default function VerifyEmailPage() {
         if (updateError) {
           console.error('Update verification error:', updateError)
           setError(updateError.message || 'Failed to mark email as verified')
+          setLoading(false)
           return
         }
 
