@@ -66,6 +66,17 @@ CREATE POLICY "rounds_update_organizer"
     )
   );
 
+-- Only organizers can delete rounds.
+CREATE POLICY "rounds_delete_organizer"
+  ON public.rounds
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.users
+      WHERE id = auth.uid() AND is_organizer = true
+    )
+  );
+
 -- ─── Indexes ─────────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS rounds_status_idx       ON public.rounds (status);
 CREATE INDEX IF NOT EXISTS rounds_created_by_idx   ON public.rounds (created_by);
