@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { signUpWithVerification } from '@/lib/actions/auth'
+import { signUpWithVerification, resendVerificationEmail } from '@/lib/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
  * LoginForm — email + password form with email verification.
  * Signup requires users to verify their email before signing in.
  * Login checks that email is verified.
+ * Includes resend verification email functionality.
  *
  * Ticket: AIEX-XXX (Email Verification)
  */
@@ -24,6 +25,8 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [verificationSent, setVerificationSent] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault()
@@ -70,7 +73,6 @@ export function LoginForm() {
 
         toast.success('Account created! Check your email to verify your address.')
         setVerificationSent(true)
-        setEmail('')
         setPassword('')
       }
     } catch (err: any) {
@@ -79,6 +81,38 @@ export function LoginForm() {
       toast.error(errorMessage)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleResendEmail() {
+    setResendLoading(true)
+    setError(null)
+
+    try {
+      const result = await resendVerificationEmail()
+
+      if (result.error) {
+        throw new Error(result.error.message)
+      }
+
+      toast.success('Verification email sent!')
+      // Start cooldown (60 seconds)
+      setResendCooldown(60)
+      const interval = setInterval(() => {
+        setResendCooldown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to resend email'
+      setError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -104,18 +138,36 @@ export function LoginForm() {
           <p className="text-xs text-zinc-500">
             After verifying, you'll be able to sign in with your email and password.
           </p>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => {
-              setVerificationSent(false)
-              setIsLogin(true)
-              setError(null)
-            }}
-          >
-            Back to sign in
-          </Button>
+
+          {error && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>}
+
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => {
+                setVerificationSent(false)
+                setIsLogin(true)
+                setError(null)
+              }}
+            >
+              Back to sign in
+            </Button>
+
+            <Button
+              type="button"
+              disabled={resendLoading || resendCooldown > 0}
+              className="flex-1"
+              onClick={handleResendEmail}
+            >
+              {resendLoading
+                ? 'Sending...'
+                : resendCooldown > 0
+                  ? `Resend (${resendCooldown}s)`
+                  : 'Resend email'}
+            </Button>
+          </div>
         </div>
       ) : (
         <form onSubmit={handleAuth} className="flex flex-col gap-4">

@@ -98,3 +98,62 @@ export async function verifyEmail(): Promise<ActionResult<null>> {
     }
   }
 }
+
+/**
+ * resendVerificationEmail — server action to resend verification email.
+ * User must be signed in and unverified. Includes rate limiting.
+ *
+ * Ticket: AIEX-XXX (Email Verification)
+ */
+export async function resendVerificationEmail(): Promise<ActionResult<{ message: string }>> {
+  const user = await getUser()
+  if (!user) {
+    return {
+      data: null,
+      error: { message: 'You must be signed in.' },
+    }
+  }
+
+  const supabase = createServerClient()
+
+  try {
+    // Get user email
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('email, email_verified')
+      .eq('id', user.id)
+      .single()
+
+    if (userError || !userData) throw new Error('User not found')
+
+    if (userData.email_verified) {
+      return {
+        data: null,
+        error: { message: 'Email is already verified.' },
+      }
+    }
+
+    // Resend verification email
+    const { error: resendError } = await supabase.auth.resend({
+      type: 'signup',
+      email: userData.email,
+      options: {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/verify-email`,
+      },
+    })
+
+    if (resendError) throw resendError
+
+    return {
+      data: {
+        message: 'Verification email sent! Check your inbox.',
+      },
+      error: null,
+    }
+  } catch (err: any) {
+    return {
+      data: null,
+      error: { message: err.message || 'Failed to resend email' },
+    }
+  }
+}
