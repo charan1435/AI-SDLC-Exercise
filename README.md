@@ -2,7 +2,7 @@
 
 A small reading group runs a monthly vote to pick a book. Propose/decide steps drag out across Slack threads, the running tally encourages bandwagoning, and there is no enforced ceiling on how many votes a member casts. This tool fixes that: the organizer opens and closes a round, members propose books and cast up to three votes (max one per book), and every rule is enforced server-side so stale tabs and direct API pokes cannot bypass the guardrails.
 
-**Demo:** https://[your-vercel-url].vercel.app/
+**Demo:** https://ai-sdlc-exercise.vercel.app/
 
 ---
 
