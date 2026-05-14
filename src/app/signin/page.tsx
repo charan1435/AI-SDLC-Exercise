@@ -1,14 +1,14 @@
-import { MagicLinkForm } from '@/components/features/auth/MagicLinkForm'
+import { LoginForm } from '@/components/features/auth/LoginForm'
 
 export const metadata = {
   title: 'Sign in — Reading List Vote',
 }
 
 /**
- * SignInPage — magic-link email entry screen.
+ * SignInPage — password-based login/signup screen.
  * Centered card layout per wireframe 1.
  *
- * Ticket: AIEX-813
+ * Ticket: AIEX-813 (revised)
  */
 export default function SignInPage() {
   return (
@@ -27,8 +27,8 @@ export default function SignInPage() {
         </p>
       </div>
 
-      {/* Sign-in card */}
-      <MagicLinkForm />
+      {/* Login card */}
+      <LoginForm />
     </div>
   )
 }
